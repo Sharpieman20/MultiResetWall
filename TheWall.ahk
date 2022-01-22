@@ -8,6 +8,7 @@
 SetKeyDelay, 0
 SetWinDelay, 1
 SetTitleMatchMode, 2
+CoordMode, Pixel, Client
 
 ; Variables to configure
 global rows := 3 ; Number of row on the wall scene
@@ -25,7 +26,7 @@ global countAttempts := True
 global resumeDelay := 50 ; increase if instance isnt resetting (or have to press reset twice)
 global maxLoops := 50 ; increase if instance isnt resetting (or have to press reset twice)
 global beforeFreezeDelay := 500 ; increase if doesnt join world
-global beforePauseDelay := 500 ; basically the delay before dynamic FPS does its thing
+global beforePauseDelay := 750 ; basically the delay before dynamic FPS does its thing
 global fullScreenDelay := 270 ; increse if fullscreening issues
 global restartDelay := 200 ; increase if saying missing instanceNumber in .minecraft (and you ran setup)
 global scriptBootDelay := 6000 ; increase if instance freezes before world gen
@@ -38,8 +39,10 @@ global useObsWebsocket := False ; Allows for > 9 instances (Additional setup req
 ; Sense and FOV may be off by 1, mess around with +-1 if you care about specifics
 global renderDistance := 18
 global FOV := 110 ; For quake pro put 110
-global mouseSensitivity := 35
-global lowRender := 5 ; For settings change performance method
+global mouseSensitivity := 100
+global lowRender := 0 ; For settings change performance method
+global GUIScale := 3
+global elderReset := True
 
 ; Don't configure these
 EnvGet, threadCount, NUMBER_OF_PROCESSORS
@@ -304,16 +307,16 @@ ExitWorld()
   if (idx := GetActiveInstanceNum()) > 0
   {
     pid := PIDs[idx]
+    if (performanceMethod == "S")
+      ResetSettings(pid, lowRender, False)
+    else
+      ResetSettings(pid, renderDistance)
     if (wideResets) {
       newHeight := Floor(A_ScreenHeight / 2.5)
       WinRestore, ahk_pid %pid%
       WinMove, ahk_pid %pid%,,0,0,%A_ScreenWidth%,%newHeight%
     }
     ToWall()
-    if (performanceMethod == "S")
-      ResetSettings(pid, lowRender, False)
-    else
-      ResetSettings(pid, renderDistance)
     ControlSend, ahk_parent, {Blind}{Esc}, ahk_pid %pid%
     ResetInstance(idx)
     if (affinity) {
@@ -341,6 +344,8 @@ ResetInstance(idx) {
     If (FileExist(idleFile))
       FileDelete, %idleFile%
     Run, reset.ahk %pid% %logFile% %maxLoops% %bfd% %idleFile% %beforePauseDelay% %resetSounds%
+    if (resetSounds)
+      SoundPlay, reset.wav
     Critical, On
     resetScriptTime.Push(A_TickCount)
     resetIdx.Push(idx)
@@ -410,10 +415,96 @@ LockInstance(idx) {
     SoundPlay, lock.wav
 }
 
+OpenToLAN(pid)
+{
+  ControlSend, ahk_parent, {Blind}{Esc}, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}{Tab 7}{Enter}{Tab 4}{Enter}{Tab}{Enter}, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}{Text}gamemode spectator, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
+  Sleep, 200
+}
+
+PieSelectColor(colour, WinWidth, WinHeight, pid)
+{
+  SearchX := WinWidth - 325
+  SearchX2 := WinWidth - 335
+  SearchY1 := WinHeight - 220
+  SearchY2 := WinHeight - 155
+  PixelSearch, X, Y, SearchX, SearchY1, SearchX2, SearchY2, colour, 0, Fast
+  If (ErrorLevel=0)
+  {
+    Y := Round((Y - WinHeight + 228) / 8)
+    ControlSend, ahk_parent, {%Y%}, ahk_pid %pid%
+  }
+  Else{
+    MsgBox, Error %ErrorLevel%
+  }
+  Sleep, 100
+}
+
+PieSelectIndex(ind, pid)
+{
+  ControlSend, ahk_parent, {%ind%}, ahk_pid %pid%
+  Sleep, 100
+}
+
+DoElderReset(pid)
+{
+  SetKeyDelay, 10
+  WinGetTitle, Title, ahk_pid %pid%
+  IfNotInString, Title, LAN
+  {
+    OpenToLAN(pid)
+  }
+  ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}{Text}gamerule doMobSpawning false, ahk_pid %pid%
+  Sleep, 50
+  ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
+  Sleep, 50
+  ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
+  Sleep, 200
+  ControlSend, ahk_parent, {Blind}{Text}tp @e[type={!}player] 10000 100 10000, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}{Text}summon elder_guardian, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
+  Sleep, 600
+  PixelGetColor, Color, 3 * GUIScale, 3 * GUIScale, Fast
+  If (Color=0xDDDDDD)
+  {
+    ControlSend, ahk_parent, {Blind}{F3}, ahk_pid %pid%
+    Sleep, 100
+  }
+  WinGetPos, WinX, WinY, WinWidth, WinHeight, ahk_pid %pid%
+  ControlSend, ahk_parent, {Blind}{Shift down}{F3 down}{Shift up}{F3 up}, ahk_pid %pid%
+  Sleep, 100
+  ControlSend, ahk_parent, {Blind}000000000, ahk_pid %pid%
+  Sleep, 50
+  PieSelectIndex(7, pid)
+  PieSelectIndex(2, pid)
+  PieSelectIndex(1, pid)
+  PieSelectIndex(1, pid)
+  SetKeyDelay, 0
+}
+
 ; Reset your settings to preset settings preferences
 ResetSettings(pid, rd, justRD:=False)
 {
   ; Find required presses to set FOV, sensitivity, and render distance
+  if (elderReset)
+  {
+    DoElderReset(pid)
+  }
   if (rd)
   {
     RDPresses := rd-2
