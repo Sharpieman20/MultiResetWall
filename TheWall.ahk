@@ -45,7 +45,6 @@ global FOV := 110 ; For quake pro put 110
 global mouseSensitivity := 100
 global lowRender := 0 ; For settings change performance method
 global GUIScale := 3
-global elderReset := True
 
 ; Don't configure these
 EnvGet, threadCount, NUMBER_OF_PROCESSORS
@@ -61,6 +60,7 @@ global locked := []
 global highBitMask := (2 ** threadCount) - 1
 global lowBitMask := (2 ** Ceil(threadCount * lowBitmaskMultiplier)) - 1
 global isOnWall := False
+global elderReset := False
 
 if (performanceMethod == "F") {
   UnsuspendAll()
@@ -472,60 +472,60 @@ PieSelectIndex(ind, pid)
   Sleep, 100
 }
 
-DoElderReset(pid)
+DoElderReset()
 {
-  SetKeyDelay, 10
-  WinGetTitle, Title, ahk_pid %pid%
-  IfNotInString, Title, LAN
+  if (idx := GetActiveInstanceNum()) > 0
   {
-    OpenToLAN(pid)
-  }
-  ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
-  Sleep, 100
-  ControlSend, ahk_parent, {Blind}{Text}gamerule doMobSpawning false, ahk_pid %pid%
-  Sleep, 50
-  ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
-  Sleep, 50
-  ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
-  Sleep, 200
-  ControlSend, ahk_parent, {Blind}{Text}tp @e[type=!player] 10000 100 10000, ahk_pid %pid%
-  Sleep, 100
-  ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
-  Sleep, 100
-  ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
-  Sleep, 100
-  ControlSend, ahk_parent, {Blind}{Text}summon elder_guardian, ahk_pid %pid%
-  Sleep, 100
-  ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
-  Sleep, 600
-  if (tryScreenRead)
-  {
-    PixelGetColor, Color, 3 * GUIScale, 3 * GUIScale, Fast
-    If (Color=0xDDDDDD)
+    pid := PIDs[idx]
+    elderReset := true
+    SetKeyDelay, 10
+    WinGetTitle, Title, ahk_pid %pid%
+    IfNotInString, Title, LAN
     {
-        ControlSend, ahk_parent, {Blind}{F3}, ahk_pid %pid%
-        Sleep, 100
+        OpenToLAN(pid)
     }
+
+    ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
+    Sleep, 100
+    ControlSend, ahk_parent, {Blind}{Text}gamerule doMobSpawning false, ahk_pid %pid%
+    Sleep, 50
+    ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
+    Sleep, 50
+    ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
+    Sleep, 200
+    ControlSend, ahk_parent, {Blind}{Text}tp @e[type=!player] 10000 100 10000, ahk_pid %pid%
+    Sleep, 100
+    ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
+    Sleep, 100
+    ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
+    Sleep, 100
+    ControlSend, ahk_parent, {Blind}{Text}summon elder_guardian, ahk_pid %pid%
+    Sleep, 100
+    ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
+    Sleep, 600
+    if (tryScreenRead)
+    {
+        PixelGetColor, Color, 3 * GUIScale, 3 * GUIScale, Fast
+        If (Color=0xDDDDDD)
+        {
+            ControlSend, ahk_parent, {Blind}{F3}, ahk_pid %pid%
+            Sleep, 100
+        }
+    }
+    SetKeyDelay, 0
+    ControlSend, ahk_parent, {Blind}{Shift down}{F3 down}{Shift up}{F3 up}, ahk_pid %pid%
+    Sleep, 100
+    ControlSend, ahk_parent, {Blind}000000000, ahk_pid %pid%
+    Sleep, 50
   }
-  WinGetPos, WinX, WinY, WinWidth, WinHeight, ahk_pid %pid%
-  ControlSend, ahk_parent, {Blind}{Shift down}{F3 down}{Shift up}{F3 up}, ahk_pid %pid%
-  Sleep, 100
-  ControlSend, ahk_parent, {Blind}000000000, ahk_pid %pid%
-  Sleep, 50
-  PieSelectIndex(7, pid)
-  PieSelectIndex(2, pid)
-  PieSelectIndex(1, pid)
-  PieSelectIndex(1, pid)
-  SetKeyDelay, 0
 }
 
 ; Reset your settings to preset settings preferences
 ResetSettings(pid, rd, justRD:=False)
 {
-  ; Find required presses to set FOV, sensitivity, and render distance
   if (elderReset)
   {
-    DoElderReset(pid)
+    FinishPie(pid)
   }
   if (rd)
   {
@@ -554,6 +554,16 @@ ResetSettings(pid, rd, justRD:=False)
   }
 }
 
+
+FinishPie(pid)
+{
+    PieSelectIndex(1, pid)
+    PieSelectIndex(1, pid)
+    PieSelectIndex(1, pid)
+    PieSelectIndex(1, pid)
+    elderReset := false
+}
+
 RAlt::Suspend ; Pause all macros
 ^LAlt:: ; Reload if macro locks up
   Reload
@@ -561,6 +571,7 @@ return
 #IfWinActive, Minecraft
 {
   *U:: ExitWorld() ; Reset
+  *P:: DoElderReset() ; Reset
 
   *NumpadAdd::ResetAll()
 
