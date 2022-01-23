@@ -23,6 +23,7 @@ global lockSounds := True
 global countAttempts := True
 global lockActive := False
 global countBG := True
+global tryScreenRead := False
 
 ; Advanced settings
 global resumeDelay := 50 ; increase if instance isnt resetting (or have to press reset twice)
@@ -487,7 +488,7 @@ DoElderReset(pid)
   Sleep, 50
   ControlSend, ahk_parent, {Blind}/, ahk_pid %pid%
   Sleep, 200
-  ControlSend, ahk_parent, {Blind}{Text}tp @e[type={!}player] 10000 100 10000, ahk_pid %pid%
+  ControlSend, ahk_parent, {Blind}{Text}tp @e[type=!player] 10000 100 10000, ahk_pid %pid%
   Sleep, 100
   ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
   Sleep, 100
@@ -497,11 +498,14 @@ DoElderReset(pid)
   Sleep, 100
   ControlSend, ahk_parent, {Blind}{Enter}, ahk_pid %pid%
   Sleep, 600
-  PixelGetColor, Color, 3 * GUIScale, 3 * GUIScale, Fast
-  If (Color=0xDDDDDD)
+  if (tryScreenRead)
   {
-    ControlSend, ahk_parent, {Blind}{F3}, ahk_pid %pid%
-    Sleep, 100
+    PixelGetColor, Color, 3 * GUIScale, 3 * GUIScale, Fast
+    If (Color=0xDDDDDD)
+    {
+        ControlSend, ahk_parent, {Blind}{F3}, ahk_pid %pid%
+        Sleep, 100
+    }
   }
   WinGetPos, WinX, WinY, WinWidth, WinHeight, ahk_pid %pid%
   ControlSend, ahk_parent, {Blind}{Shift down}{F3 down}{Shift up}{F3 up}, ahk_pid %pid%
