@@ -21,6 +21,8 @@ global disableTTS := False
 global resetSounds := True ; :)
 global lockSounds := True
 global countAttempts := True
+global lockActive := False
+global countBG := True
 
 ; Advanced settings
 global resumeDelay := 50 ; increase if instance isnt resetting (or have to press reset twice)
@@ -57,6 +59,7 @@ global resetIdx := []
 global locked := []
 global highBitMask := (2 ** threadCount) - 1
 global lowBitMask := (2 ** Ceil(threadCount * lowBitmaskMultiplier)) - 1
+global isOnWall := False
 
 if (performanceMethod == "F") {
   UnsuspendAll()
@@ -251,7 +254,8 @@ SwitchInstance(idx)
       cmd := Format("python.exe obs.py 1 {1}", idx)
       Run, %cmd%,, Hide
     }
-    locked[idx] := false
+    isOnWall := false
+    locked[idx] := lockActive
     pid := PIDs[idx]
     if (affinity) {
       for i, tmppid in PIDs {
@@ -368,6 +372,19 @@ ResetInstance(idx) {
       WorldNumber += 1
       FileAppend, %WorldNumber%, ATTEMPTS_DAY.txt
     }
+    if (countBG)
+    {
+      if (!isOnWall)
+      {
+        FileRead, WorldNumber, BG_DAY.txt
+        if (ErrorLevel)
+          WorldNumber = 0
+        else
+          FileDelete, BG_DAY.txt
+        WorldNumber += 1
+        FileAppend, %WorldNumber%, BG_DAY.txt
+      }
+    }
   }
 }
 
@@ -379,6 +396,7 @@ SetTitles() {
 
 ToWall() {
   WinActivate, Fullscreen Projector
+  isOnWall := true
   if (useObsWebsocket) {
     cmd := Format("python.exe obs.py 0", idx)
     Run, %cmd%,, Hide
